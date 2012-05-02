@@ -1,0 +1,4 @@
+Place a (potentially modified) copy of the ZooKeeper config file from
+this directory into the main distribution directory when running tests
+in order to run the actual test suite. It's just hostname and port of
+your ZooKeeper instance, each on its own line.
