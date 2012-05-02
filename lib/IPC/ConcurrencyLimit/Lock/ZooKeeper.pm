@@ -6,6 +6,7 @@ use warnings;
 
 use Carp qw(croak);
 use Net::ZooKeeper::Lock;
+use Net::ZooKeeper;
 
 use parent 'IPC::ConcurrencyLimit::Lock';
 
@@ -71,10 +72,10 @@ sub _get_lock {
   my $prefix = $self->{path};
   my $hostname = $self->{hostname};
   my $port = $self->{port};
+  my $zkh = Net::ZooKeeper->new("$hostname:$port");
   for my $worker (1 .. $self->{max_procs}) {
-
     my $lock = Net::ZooKeeper::Lock->new(
-      host => "$hostname:$port",
+      zkh => $zkh,
       create_prefix => 1,
       lock_prefix => $prefix,
       lock_name => "lock$worker",
@@ -83,6 +84,7 @@ sub _get_lock {
     
     if ($lock) {
       $self->{zk_lock} = $lock;
+      $self->{id} = $worker;
       last;
     }
   }
