@@ -36,6 +36,9 @@ Port number of the ZooKeeper instance (defaults to 2181).
 
 =cut
 
+our %ZooKeepers;
+our %ZooKeeperLocks;
+
 sub hostname { $_[0]->{hostname} }
 sub port { $_[0]->{port} }
 sub path { $_[0]->{path} }
@@ -72,7 +75,9 @@ sub _get_lock {
   my $prefix = $self->{path};
   my $hostname = $self->{hostname};
   my $port = $self->{port};
-  my $zkh = Net::ZooKeeper->new("$hostname:$port");
+  my $hp = "$hostname:$port";
+  my $zkh = $ZooKeepers{$hp} ||= Net::ZooKeeper->new($hp);
+  $ZooKeeperLocks{$hp}++;
   for my $worker (1 .. $self->{max_procs}) {
     my $lock = Net::ZooKeeper::Lock->new(
       zkh => $zkh,
@@ -89,7 +94,14 @@ sub _get_lock {
     }
   }
 
-  return undef if not $self->{zk_lock};
+  if (not $self->{zk_lock}) {
+    $ZooKeeperLocks{$hp}--;
+    if ($ZooKeeperLocks{$hp} <= 0) {
+      delete $ZooKeeperLocks{$hp};
+      delete $ZooKeepers{$hp};
+    }
+    return undef;
+  }
   return 1;
 }
 
@@ -98,7 +110,19 @@ sub _get_lock {
 # but in this case, we just hold on to the ZK object that does it
 # for us when destroyed itself.
 # Thus, it will be released as soon as this object is freed.
-#sub DESTROY {}
+sub DESTROY {
+  my $self = shift;
+  if (defined $self->{id}) {
+    my $hp = $self->{hostname} . ":" . $self->{port};
+    $ZooKeeperLocks{$hp}--;
+    # reset zookeeper connection, too
+    if ($ZooKeeperLocks{$hp} <= 0) {
+      delete $ZooKeeperLocks{$hp};
+      delete $self->{zk_lock};
+      delete $ZooKeepers{$hp};
+    }
+  }
+}
 
 1;
 
