@@ -144,7 +144,11 @@ locking via ZooKeeper.
 
 B<Beware:> This is alpha-quality software. Before relying on it
 in production, please get in touch with the author to check for
-potential updates, new gotchas, and stability.
+potential updates, new gotchas, and stability. More specifically,
+there is a poorly understood issue with locks involving many
+ZooKeeper sequence znodes and the quality of this module cannot be
+higher than that of the underlying lock implementation in
+L<Net::ZooKeeper::Lock>.
 
 Inherits from L<IPC::ConcurrencyLimit::Lock>.
 
